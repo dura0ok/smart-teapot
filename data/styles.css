@@ -149,6 +149,53 @@ input:checked + .slider:before {
     color: #333;
 }
 
+.relay-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+    padding: 12px;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+.relay-status-label {
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+}
+
+.relay-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.relay-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ccc;
+    transition: background-color 0.3s;
+    animation: pulse 2s infinite;
+}
+
+.relay-dot.on {
+    background: #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+
+.relay-dot.off {
+    background: #6b7280;
+}
+
+#relay-status-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
 .temperature-control {
     margin-bottom: 20px;
 }
@@ -253,19 +300,130 @@ input:checked + .slider:before {
     font-style: italic;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
+    body {
+        padding: 15px;
+    }
+
+    .container {
+        max-width: 100%;
+    }
+
     header {
         flex-direction: column;
         gap: 15px;
         text-align: center;
+        padding: 20px;
+    }
+
+    header h1 {
+        font-size: 24px;
+    }
+
+    .card {
+        padding: 20px;
+    }
+
+    .card h2 {
+        font-size: 18px;
     }
 
     .temp-display {
-        font-size: 36px;
+        font-size: 40px;
     }
 
     .current-temp {
-        font-size: 48px;
+        font-size: 56px;
+    }
+
+    .power-control {
+        gap: 15px;
+    }
+
+    .relay-status {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .relay-status-indicator {
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 10px;
+    }
+
+    header {
+        padding: 15px;
+    }
+
+    header h1 {
+        font-size: 20px;
+    }
+
+    .card {
+        padding: 15px;
+    }
+
+    .card h2 {
+        font-size: 16px;
+        margin-bottom: 15px;
+    }
+
+    .temp-display {
+        font-size: 32px;
+        margin: 15px 0;
+    }
+
+    .temp-display .unit {
+        font-size: 18px;
+    }
+
+    .current-temp {
+        font-size: 42px;
+    }
+
+    .label-text {
+        font-size: 16px;
+    }
+
+    .power-control {
+        gap: 10px;
+    }
+
+    .switch {
+        width: 50px;
+        height: 28px;
+    }
+
+    .slider:before {
+        height: 22px;
+        width: 22px;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(22px);
+    }
+
+    #temp-slider {
+        height: 6px;
+    }
+
+    #temp-slider::-webkit-slider-thumb {
+        width: 20px;
+        height: 20px;
+    }
+
+    #temp-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+    }
+
+    .hint {
+        font-size: 12px;
     }
 }
 

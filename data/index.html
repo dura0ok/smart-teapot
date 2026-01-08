@@ -27,21 +27,24 @@
                         </label>
                         <span class="label-text" id="power-label">Выключен</span>
                     </div>
-                    <p class="hint">Включить/выключить чайник принудительно</p>
+                    <div class="relay-status">
+                        <span class="relay-status-label">Состояние реле:</span>
+                        <span class="relay-status-indicator" id="relay-status">
+                            <span class="relay-dot" id="relay-dot"></span>
+                            <span id="relay-status-text">--</span>
+                        </span>
+                    </div>
+                    <p class="hint">Включить/выключить чайник. При включении работает автоматическое поддержание температуры</p>
                 </div>
 
                 <div class="card">
                     <h2>Температура поддержания</h2>
                     <div class="temperature-control">
-                        <input type="range" id="temp-slider" min="30" max="100" value="85" step="0.5">
+                        <input type="range" id="temp-slider" min="20" max="100" step="0.5">
                         <div class="temp-display">
-                            <span id="setpoint-value">85.0</span>
+                            <span id="setpoint-value">--</span>
                             <span class="unit">°C</span>
                         </div>
-                    </div>
-                    <div class="temp-input-group">
-                        <input type="number" id="temp-input" min="30" max="100" step="0.5" value="85.0">
-                        <button id="set-temp-btn" class="btn btn-primary">Установить</button>
                     </div>
                     <p class="hint">Температура, которую будет поддерживать чайник</p>
                 </div>
@@ -62,4 +65,3 @@
     <script src="/script.js"></script>
 </body>
 </html>
-

@@ -1,7 +1,7 @@
 idf_component_register(
     SRCS "src/wifi_web.c"
     INCLUDE_DIRS "include"
-    REQUIRES config nvs_flash esp_http_server esp_netif esp_wifi esp_event spiffs json
+    REQUIRES config nvs_flash esp_http_server esp_netif esp_wifi esp_event spiffs json temp_sensor relay
 )
 
 # Создаем SPIFFS образ с веб-файлами из каталога data (PlatformIO автоматически создаст образ)

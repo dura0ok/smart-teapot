@@ -1,0 +1,7 @@
+version: "1.0.0"
+description: DS18B20 temperature sensor component
+dependencies:
+  idf: ">=5.0"
+  k0i05/esp_ds18b20:
+    version: "^1.2.6"
+

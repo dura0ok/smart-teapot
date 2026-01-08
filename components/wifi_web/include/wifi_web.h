@@ -10,22 +10,19 @@
 extern "C" {
 #endif
 
-/**
- * @brief Структура состояния чайника
- */
 typedef struct {
-    bool is_on;           ///< Включен ли чайник принудительно
-    float setpoint_temp;  ///< Температура поддержания (°C)
-    float current_temp;   ///< Текущая температура (°C)
+    bool is_on;
+    float setpoint_temp;
+    float current_temp;
 } teapot_state_t;
 
-/**
- * @brief Контекст WiFi веб-сервера
- */
 typedef struct {
     httpd_handle_t server;
     teapot_state_t state;
     teapot_config_t *config;
+    void *temp_sensor_handle;
+    void *temp_task_handle;
+    void *relay_handle;
 } wifi_web_ctx_t;
 
 /**
@@ -102,6 +99,20 @@ esp_err_t wifi_web_get_state(wifi_web_ctx_t *ctx, teapot_state_t *state);
  * @return ESP_OK в случае успеха, иначе код ошибки
  */
 esp_err_t wifi_web_set_current_temp(wifi_web_ctx_t *ctx, float temperature);
+
+/**
+ * @brief Запустить задачу чтения температуры с датчика
+ * @param ctx Контекст веб-сервера
+ * @return ESP_OK в случае успеха, иначе код ошибки
+ */
+esp_err_t wifi_web_start_temp_sensor(wifi_web_ctx_t *ctx);
+
+/**
+ * @brief Остановить задачу чтения температуры
+ * @param ctx Контекст веб-сервера
+ * @return ESP_OK в случае успеха, иначе код ошибки
+ */
+esp_err_t wifi_web_stop_temp_sensor(wifi_web_ctx_t *ctx);
 
 #ifdef __cplusplus
 }

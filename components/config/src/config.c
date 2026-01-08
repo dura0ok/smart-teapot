@@ -14,8 +14,7 @@ esp_err_t config_init_default(teapot_config_t *config) {
 
     config->gpio.relay_gpio = 4;
     config->gpio.temp_sensor_gpio = 5;
-
-    config->default_setpoint = 85.0f;
+    config->default_setpoint = CONFIG_DEFAULT_SETPOINT;
 
     return ESP_OK;
 }

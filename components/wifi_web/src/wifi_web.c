@@ -8,19 +8,21 @@
 #include "nvs_flash.h"
 #include "lwip/ip4_addr.h"
 #include "config.h"
+#include "temp_sensor.h"
+#include "relay.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "cJSON.h"
 #include <string.h>
-#include <sys/stat.h>
 #include <dirent.h>
 #include <assert.h>
 
 static const char *TAG = "WIFI_WEB";
 static const char *SPIFFS_BASE_PATH = "/spiffs";
-static wifi_web_ctx_t *g_ctx = NULL; // Global context for event handler
-static bool server_started_from_event = false; // Flag to prevent multiple server starts from events
-static esp_event_handler_instance_t wifi_event_handler_instance = NULL; // Event handler instance
+static wifi_web_ctx_t *g_ctx = NULL;
+static bool server_started_from_event = false;
+static esp_event_handler_instance_t wifi_event_handler_instance = NULL;
 
-// Helper function to send JSON response
 static esp_err_t send_json_response(httpd_req_t *req, cJSON *json) {
     char *json_str = cJSON_Print(json);
     if (json_str == NULL) {
@@ -33,7 +35,6 @@ static esp_err_t send_json_response(httpd_req_t *req, cJSON *json) {
     return ret;
 }
 
-// Helper function to send file from SPIFFS
 static esp_err_t send_file_from_spiffs(httpd_req_t *req, const char *filepath, const char *content_type) {
     char filepath_full[256];
     snprintf(filepath_full, sizeof(filepath_full), "%s%s", SPIFFS_BASE_PATH, filepath);
@@ -59,31 +60,33 @@ static esp_err_t send_file_from_spiffs(httpd_req_t *req, const char *filepath, c
     }
     
     fclose(file);
-    httpd_resp_send_chunk(req, NULL, 0); // End response
+    httpd_resp_send_chunk(req, NULL, 0);
     return ret;
 }
 
-// Handler for serving HTML file
 static esp_err_t index_html_handler(httpd_req_t *req) {
     return send_file_from_spiffs(req, "/index.html", "text/html");
 }
 
-// Handler for serving CSS file
 static esp_err_t styles_css_handler(httpd_req_t *req) {
     return send_file_from_spiffs(req, "/styles.css", "text/css");
 }
 
-// Handler for serving JS file
 static esp_err_t script_js_handler(httpd_req_t *req) {
     return send_file_from_spiffs(req, "/script.js", "application/javascript");
 }
 
-// Handler for GET /api/state
 static esp_err_t api_state_get_handler(httpd_req_t *req) {
     wifi_web_ctx_t *ctx = (wifi_web_ctx_t *)req->user_ctx;
+    bool relay_state = false;
+    
+    if (ctx->relay_handle != NULL) {
+        relay_get_state((relay_handle_t)ctx->relay_handle, &relay_state);
+    }
     
     cJSON *json = cJSON_CreateObject();
     cJSON_AddBoolToObject(json, "is_on", ctx->state.is_on);
+    cJSON_AddBoolToObject(json, "relay_state", relay_state);
     cJSON_AddNumberToObject(json, "setpoint_temp", ctx->state.setpoint_temp);
     cJSON_AddNumberToObject(json, "current_temp", ctx->state.current_temp);
     
@@ -112,19 +115,17 @@ static esp_err_t api_power_post_handler(httpd_req_t *req) {
     }
     
     cJSON *is_on_item = cJSON_GetObjectItem(json, "is_on");
-    if (cJSON_IsBool(is_on_item)) {
-        ctx->state.is_on = cJSON_IsTrue(is_on_item);
-        ESP_LOGI(TAG, "Power set to: %s", ctx->state.is_on ? "ON" : "OFF");
-    } else {
+    if (!cJSON_IsBool(is_on_item)) {
         cJSON_Delete(json);
         httpd_resp_set_status(req, "400 Bad Request");
         httpd_resp_send(req, "Bad Request", HTTPD_RESP_USE_STRLEN);
         return ESP_FAIL;
     }
     
+    ctx->state.is_on = cJSON_IsTrue(is_on_item);
+    ESP_LOGI(TAG, "Power set to: %s", ctx->state.is_on ? "ON" : "OFF");
     cJSON_Delete(json);
     
-    // Return success response
     cJSON *response = cJSON_CreateObject();
     cJSON_AddBoolToObject(response, "success", true);
     esp_err_t err = send_json_response(req, response);
@@ -152,27 +153,25 @@ static esp_err_t api_setpoint_post_handler(httpd_req_t *req) {
     }
     
     cJSON *temp_item = cJSON_GetObjectItem(json, "temperature");
-    if (cJSON_IsNumber(temp_item)) {
-        float temp = (float)cJSON_GetNumberValue(temp_item);
-        if (temp >= CONFIG_TEMP_MIN && temp <= CONFIG_TEMP_MAX) {
-            ctx->state.setpoint_temp = temp;
-            ESP_LOGI(TAG, "Setpoint set to: %.1f°C", temp);
-        } else {
-            cJSON_Delete(json);
-            httpd_resp_set_status(req, "400 Bad Request");
-            httpd_resp_send(req, "Bad Request", HTTPD_RESP_USE_STRLEN);
-            return ESP_FAIL;
-        }
-    } else {
+    if (!cJSON_IsNumber(temp_item)) {
         cJSON_Delete(json);
         httpd_resp_set_status(req, "400 Bad Request");
         httpd_resp_send(req, "Bad Request", HTTPD_RESP_USE_STRLEN);
         return ESP_FAIL;
     }
     
+    float temp = (float)cJSON_GetNumberValue(temp_item);
+    if (temp < CONFIG_TEMP_MIN || temp > CONFIG_TEMP_MAX) {
+        cJSON_Delete(json);
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_send(req, "Bad Request", HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+    
+    ctx->state.setpoint_temp = temp;
+    ESP_LOGI(TAG, "Setpoint set to: %.1f°C", temp);
     cJSON_Delete(json);
     
-    // Return success response
     cJSON *response = cJSON_CreateObject();
     cJSON_AddBoolToObject(response, "success", true);
     esp_err_t err = send_json_response(req, response);
@@ -237,6 +236,8 @@ esp_err_t wifi_web_init_ctx(wifi_web_ctx_t *ctx, teapot_config_t *config) {
     ctx->state.setpoint_temp = config->default_setpoint;
     ctx->state.current_temp = 0.0f;
     ctx->server = NULL;
+    ctx->temp_sensor_handle = NULL;
+    ctx->temp_task_handle = NULL;
     
     return ESP_OK;
 }
@@ -410,33 +411,37 @@ esp_err_t wifi_web_init(wifi_web_ctx_t *ctx, teapot_config_t *config) {
         return ESP_ERR_INVALID_ARG;
     }
     
-    // Stop server if already running (for tests cleanup)
     if (g_ctx != NULL && g_ctx->server != NULL) {
         wifi_web_stop(g_ctx);
     }
     
-    // Reset server start flag for new initialization
     server_started_from_event = false;
     
-    // Initialize context
     esp_err_t ret = wifi_web_init_ctx(ctx, config);
     if (ret != ESP_OK) {
         return ret;
     }
     
-    g_ctx = ctx; // Store for event handler
+    g_ctx = ctx;
     
-    // Initialize SPIFFS
     ret = wifi_web_init_spiffs();
     if (ret != ESP_OK) {
         return ret;
     }
     
-    // Initialize WiFi
     ret = wifi_web_init_wifi(config);
     if (ret != ESP_OK) {
         return ret;
     }
+    
+    relay_handle_t relay;
+    ret = relay_init(config, &relay);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize relay: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    ctx->relay_handle = (void *)relay;
+    ESP_LOGI(TAG, "Relay initialized");
     
     return ESP_OK;
 }
@@ -538,6 +543,14 @@ esp_err_t wifi_web_stop(wifi_web_ctx_t *ctx) {
         return ESP_ERR_INVALID_ARG;
     }
     
+    wifi_web_stop_temp_sensor(ctx);
+    
+    if (ctx->relay_handle != NULL) {
+        relay_deinit((relay_handle_t)ctx->relay_handle);
+        ctx->relay_handle = NULL;
+        ESP_LOGI(TAG, "Relay deinitialized");
+    }
+    
     if (ctx->server != NULL) {
         esp_err_t ret = httpd_stop(ctx->server);
         if (ret != ESP_OK) {
@@ -547,10 +560,7 @@ esp_err_t wifi_web_stop(wifi_web_ctx_t *ctx) {
         ESP_LOGI(TAG, "HTTP server stopped");
     }
     
-    // Reset server start flag
     server_started_from_event = false;
-    
-    // Unregister SPIFFS
     esp_vfs_spiffs_unregister("web_storage");
     ESP_LOGI(TAG, "SPIFFS unmounted");
     
@@ -599,3 +609,128 @@ esp_err_t wifi_web_set_current_temp(wifi_web_ctx_t *ctx, float temperature) {
     return ESP_OK;
 }
 
+static void temp_sensor_task(void *pvParameters) {
+    wifi_web_ctx_t *ctx = (wifi_web_ctx_t *)pvParameters;
+    temp_sensor_handle_t sensor = (temp_sensor_handle_t)ctx->temp_sensor_handle;
+    relay_handle_t relay = (relay_handle_t)ctx->relay_handle;
+    
+    ESP_LOGI(TAG, "Temperature sensor task started");
+    
+    while (1) {
+        float temperature;
+        esp_err_t ret = temp_sensor_read_temperature(sensor, &temperature);
+        
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to read temperature: %s", esp_err_to_name(ret));
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            continue;
+        }
+        
+        if (temperature == 85.0f || temperature == -85.0f) {
+            ESP_LOGW(TAG, "Temperature reading failed (default value: %.2f°C)", temperature);
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            continue;
+        }
+        
+        wifi_web_set_current_temp(ctx, temperature);
+        ESP_LOGI(TAG, "Temperature: %.2f°C", temperature);
+        
+        if (relay == NULL) {
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            continue;
+        }
+        
+        if (!ctx->state.is_on) {
+            bool current_state;
+            relay_get_state(relay, &current_state);
+            if (current_state) {
+                relay_set_state(relay, false);
+                ESP_LOGI(TAG, "Power off: relay OFF");
+            }
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            continue;
+        }
+        
+        bool should_be_on = temperature < ctx->state.setpoint_temp;
+        bool current_state;
+        relay_get_state(relay, &current_state);
+        
+        if (should_be_on != current_state) {
+            relay_set_state(relay, should_be_on);
+            ESP_LOGI(TAG, "Auto control: relay %s (temp %.2f°C %s setpoint %.2f°C)", 
+                    should_be_on ? "ON" : "OFF", temperature, 
+                    should_be_on ? "<" : ">=", ctx->state.setpoint_temp);
+        }
+        
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}
+
+esp_err_t wifi_web_start_temp_sensor(wifi_web_ctx_t *ctx) {
+    if (ctx == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    
+    if (ctx->temp_sensor_handle != NULL) {
+        ESP_LOGW(TAG, "Temperature sensor already initialized");
+        return ESP_OK;
+    }
+    
+    if (ctx->config == NULL) {
+        ESP_LOGE(TAG, "Config is NULL, cannot initialize temperature sensor");
+        return ESP_ERR_INVALID_STATE;
+    }
+    
+    // Initialize temperature sensor
+    temp_sensor_handle_t sensor;
+    esp_err_t ret = temp_sensor_init(ctx->config, TEMP_SENSOR_RESOLUTION_12BIT, &sensor);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize temperature sensor: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    
+    ctx->temp_sensor_handle = (void *)sensor;
+    ESP_LOGI(TAG, "Temperature sensor initialized");
+    
+    // Create task for reading temperature
+    BaseType_t task_ret = xTaskCreate(
+        temp_sensor_task,
+        "temp_sensor",
+        4096,
+        ctx,
+        5,
+        (TaskHandle_t *)&ctx->temp_task_handle
+    );
+    
+    if (task_ret != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create temperature sensor task");
+        temp_sensor_deinit(sensor);
+        ctx->temp_sensor_handle = NULL;
+        return ESP_ERR_NO_MEM;
+    }
+    
+    ESP_LOGI(TAG, "Temperature sensor task created");
+    return ESP_OK;
+}
+
+esp_err_t wifi_web_stop_temp_sensor(wifi_web_ctx_t *ctx) {
+    if (ctx == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    
+    // Delete task if exists
+    if (ctx->temp_task_handle != NULL) {
+        vTaskDelete((TaskHandle_t)ctx->temp_task_handle);
+        ctx->temp_task_handle = NULL;
+        ESP_LOGI(TAG, "Temperature sensor task deleted");
+    }
+    
+    // Deinitialize sensor if exists
+    if (ctx->temp_sensor_handle != NULL) {
+        temp_sensor_deinit((temp_sensor_handle_t)ctx->temp_sensor_handle);
+        ctx->temp_sensor_handle = NULL;
+        ESP_LOGI(TAG, "Temperature sensor deinitialized");
+    }
+    
+    return ESP_OK;
+}

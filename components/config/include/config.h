@@ -11,8 +11,9 @@ extern "C" {
 #define CONFIG_WIFI_PASSWORD_MIN_LEN 8
 #define CONFIG_GPIO_MIN 0
 #define CONFIG_GPIO_MAX 21
-#define CONFIG_TEMP_MIN 0.0f
+#define CONFIG_TEMP_MIN 20.0f
 #define CONFIG_TEMP_MAX 100.0f
+#define CONFIG_DEFAULT_SETPOINT 85.0f
 
 typedef struct {
     char ssid[CONFIG_WIFI_SSID_MAX_LEN + 1];

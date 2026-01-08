@@ -26,6 +26,13 @@ void app_main(void) {
     
     ESP_ERROR_CHECK(wifi_web_init(&wifi_web_ctx, &config));
     
+    esp_err_t temp_ret = wifi_web_start_temp_sensor(&wifi_web_ctx);
+    if (temp_ret != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to start temperature sensor: %s", esp_err_to_name(temp_ret));
+    } else {
+        ESP_LOGI(TAG, "Temperature sensor started");
+    }
+    
     ESP_LOGI(TAG, "Smart Teapot initialized successfully");
     
     vTaskSuspend(NULL);
