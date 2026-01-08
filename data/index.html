@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Умный Чайник - Панель управления</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>☕ Умный Чайник</h1>
+            <div class="status-indicator">
+                <span id="status-text">Загрузка...</span>
+                <span class="status-dot" id="status-dot"></span>
+            </div>
+        </header>
+
+        <main>
+            <section class="control-panel">
+                <div class="card">
+                    <h2>Управление питанием</h2>
+                    <div class="power-control">
+                        <label class="switch">
+                            <input type="checkbox" id="power-switch">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="label-text" id="power-label">Выключен</span>
+                    </div>
+                    <p class="hint">Включить/выключить чайник принудительно</p>
+                </div>
+
+                <div class="card">
+                    <h2>Температура поддержания</h2>
+                    <div class="temperature-control">
+                        <input type="range" id="temp-slider" min="30" max="100" value="85" step="0.5">
+                        <div class="temp-display">
+                            <span id="setpoint-value">85.0</span>
+                            <span class="unit">°C</span>
+                        </div>
+                    </div>
+                    <div class="temp-input-group">
+                        <input type="number" id="temp-input" min="30" max="100" step="0.5" value="85.0">
+                        <button id="set-temp-btn" class="btn btn-primary">Установить</button>
+                    </div>
+                    <p class="hint">Температура, которую будет поддерживать чайник</p>
+                </div>
+            </section>
+
+            <section class="info-panel">
+                <div class="card">
+                    <h2>Текущая температура</h2>
+                    <div class="current-temp">
+                        <span id="current-temp-value">--</span>
+                        <span class="unit">°C</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/script.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,6 @@
+## IDF Component Manager Manifest File
+## See https://github.com/espressif/idf-component-manager
+idf:
+  version: ">=4.1.0"
+
+

@@ -1,0 +1,76 @@
+# ==================================================
+# Build artifacts (ESP-IDF / PlatformIO)
+# ==================================================
+build/
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# ESP-IDF specific
+sdkconfig
+sdkconfig.old
+sdkconfig.*.old
+sdkconfig.defaults
+managed_components/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# ==================================================
+# Python
+# ==================================================
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# ==================================================
+# IDEs & Editors
+# ==================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ==================================================
+# Logs & runtime
+# ==================================================
+*.log
+core
+core.*
+
+# ==================================================
+# Generated / local-only files
+# ==================================================
+dependencies.lock
+include/config_autogen.h
+
+# ==================================================
+# Test binaries / coverage
+# ==================================================
+coverage/
+.gcda
+.gcno
+.gcov
+
+# ==================================================
+# ESP-IDF flash artifacts
+# ==================================================
+*.bin
+*.elf
+*.map
+
+# ==================================================
+# Temporary / misc
+# ==================================================
+tmp/
+.cache/
