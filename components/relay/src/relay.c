@@ -44,6 +44,7 @@ esp_err_t relay_init(const teapot_config_t *config, relay_handle_t *handle) {
     }
     
     ESP_LOGI(TAG, "Relay initialized on GPIO %d", g_relay.gpio);
+    gpio_set_level(g_relay.gpio, RELAY_OFF);
     *handle = &g_relay;
     return ESP_OK;
 }
@@ -63,7 +64,7 @@ esp_err_t relay_on(relay_handle_t handle) {
         return ESP_ERR_INVALID_ARG;
     }
     
-    // gpio_set_level(handle->gpio, RELAY_ON);
+    gpio_set_level(handle->gpio, RELAY_ON);
     handle->current_state = true;
     ESP_LOGI(TAG, "Relay ON (GPIO %d)", handle->gpio);
     return ESP_OK;
@@ -74,7 +75,7 @@ esp_err_t relay_off(relay_handle_t handle) {
         return ESP_ERR_INVALID_ARG;
     }
     
-    // gpio_set_level(handle->gpio, RELAY_OFF);
+    gpio_set_level(handle->gpio, RELAY_OFF);
     handle->current_state = false;
     ESP_LOGI(TAG, "Relay OFF (GPIO %d)", handle->gpio);
     return ESP_OK;
